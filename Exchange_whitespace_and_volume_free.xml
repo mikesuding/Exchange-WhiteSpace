@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<feed  version="1.0" hasPendingRequests="false" >
+  <company></company>
+  <status>200</status>
+  <errmsg>OK</errmsg>
+  <interval>0</interval>
+    <entry type="predatasource">
+        <version>1541860440</version>
+        <name>Exchange whitespace and volume free</name>
+        <displayedas>Exchange whitespace and volume free</displayedas>
+        <description>By Mike Suding. Alerts if WhiteSpace and volume_free are BOTH below thresholds. Specify thresholds (in GB) in properties named &#34;threshold_whitespace&#34;  and &#34;threshold_volume_free&#34;</description>
+        <collector>batchscript</collector>
+        <hasMultiInstances>true</hasMultiInstances>
+        <schedule>600</schedule>
+        <appliesTo>threshold_whitespace &#38;&#38; threshold_volume_free</appliesTo>
+        <wildcardauto>true</wildcardauto>
+        <wildcardpersist>false</wildcardpersist>
+        <wildcardlinuxscript>ad_script</wildcardlinuxscript>
+        <wildcardlinuxcmdline>type=&#34;powerShell&#34; </wildcardlinuxcmdline>
+        <wildcardwinscript>ad_script</wildcardwinscript>
+        <wildcardwincmdline>type=&#34;powerShell&#34; </wildcardwincmdline>
+        <wildcardgroovyscript>#Exchange MailBox Space Discovery Script
+$ExchangeHostName = &#39;##SYSTEM.SYSNAME##&#39;
+$ExchangeDomain   = &#39;##SYSTEM.DOMAIN##&#39;
+$ExchangeFQDN     = $ExchangeHostName + &#34;.&#34; + $ExchangeDomain
+$ExchangeUserName = &#39;##exchange.user##&#39;
+$ExchangePassword = &#39;##exchange.pass##&#39;
+
+Try
+{
+    #If Exchange creds empty - invoke remote command without creds, if not - create credential object and use it for authorization
+    if ($ExchangeUserName -Match &#34;exchange.user&#34; -and $ExchangePassword -Match &#34;exchange.pass&#34;)
+    {
+        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri &#34;http://$ExchangeFQDN/PowerShell/&#34; -Authentication Kerberos -ErrorAction Stop
+    }
+    else
+    {
+        $ExchangeCredentials = New-Object System.Management.Automation.PSCredential ($ExchangeUserName, $(ConvertTo-SecureString $ExchangePassword -AsPlainText -Force))
+        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri &#34;http://$ExchangeFQDN/PowerShell/&#34; -Authentication Kerberos -Credential $ExchangeCredentials  -ErrorAction Stop
+    }
+    Import-PSSession $ExchangeSession -DisableNameChecking | Out-Null      #Start Remote session
+    $ExDataBases = Get-MailboxDatabase
+    Foreach ($ExDB in $ExDataBases)
+    {
+        Write-Host &#34;$($ExDB.Identity)##$($ExDB.Name)&#34;
+    }
+    Remove-PSSession $ExchangeSession
+}
+Catch 
+{
+    #In case of error - create new instance with error description
+    Write-Host &#34;ERROR##$($_.FullyQualifiedErrorId): $($_.Exception.Message)&#34;
+    #End remote session if it exists
+    If ($ExchangeSession)
+    {
+        Remove-PSSession $ExchangeSession
+    }
+}
+Exit 0</wildcardgroovyscript>
+        <wildcardschedule>60</wildcardschedule>
+        <wildcarddisable>false</wildcarddisable>
+        <wildcarddeleteinactive>true</wildcarddeleteinactive>
+        <agdmethod>none</agdmethod>
+        <agdparams></agdparams>
+        <group></group>
+        <tags></tags>
+        <technology>uses username+pw that collector is running as unless you set properties for exchange.user and exchange.pass.</technology>
+        <adlist><![CDATA[{"agdmethod":"none","method":"ad_script","agdparams":"","id":0,"filters":[],"params":{"type":"powerShell","groovyscript":"#Exchange MailBox Space Discovery Script\r\n$ExchangeHostName = '##SYSTEM.SYSNAME##'\r\n$ExchangeDomain   = '##SYSTEM.DOMAIN##'\r\n$ExchangeFQDN     = $ExchangeHostName + \".\" + $ExchangeDomain\r\n$ExchangeUserName = '##exchange.user##'\r\n$ExchangePassword = '##exchange.pass##'\r\n\r\nTry\r\n{\r\n    #If Exchange creds empty - invoke remote command without creds, if not - create credential object and use it for authorization\r\n    if ($ExchangeUserName -Match \"exchange.user\" -and $ExchangePassword -Match \"exchange.pass\")\r\n    {\r\n        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri \"http://$ExchangeFQDN/PowerShell/\" -Authentication Kerberos -ErrorAction Stop\r\n    }\r\n    else\r\n    {\r\n        $ExchangeCredentials = New-Object System.Management.Automation.PSCredential ($ExchangeUserName, $(ConvertTo-SecureString $ExchangePassword -AsPlainText -Force))\r\n        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri \"http://$ExchangeFQDN/PowerShell/\" -Authentication Kerberos -Credential $ExchangeCredentials  -ErrorAction Stop\r\n    }\r\n    Import-PSSession $ExchangeSession -DisableNameChecking | Out-Null      #Start Remote session\r\n    $ExDataBases = Get-MailboxDatabase\r\n    Foreach ($ExDB in $ExDataBases)\r\n    {\r\n        Write-Host \"$($ExDB.Identity)##$($ExDB.Name)\"\r\n    }\r\n    Remove-PSSession $ExchangeSession\r\n}\r\nCatch \r\n{\r\n    #In case of error - create new instance with error description\r\n    Write-Host \"ERROR##$($_.FullyQualifiedErrorId): $($_.Exception.Message)\"\r\n    #End remote session if it exists\r\n    If ($ExchangeSession)\r\n    {\r\n        Remove-PSSession $ExchangeSession\r\n    }\r\n}\r\nExit 0"}}]]></adlist>
+        <schemaVersion>2</schemaVersion>
+        <dataSourceType>1</dataSourceType>
+        <attributes>
+        <attribute>
+            <name>scripttype</name>
+            <value>powerShell</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>scriptgroovy</name>
+            <value>#Collection Script: get thresholds from properties. if both are below thresholds then status =2 which is BAD
+$Threshold_WhiteSpace  = &#39;##threshold_whitespace##&#39;  # in GB
+$Threshold_Volume_Free = &#39;##threshold_volume_free##&#39; # in GB
+$ExchangeHostName  = &#39;##SYSTEM.SYSNAME##&#39;
+$ExchangeDomain    = &#39;##SYSTEM.DOMAIN##&#39;
+$ExchangeFQDN = $ExchangeHostName + &#34;.&#34; + $ExchangeDomain
+$ExchangeUserName = &#39;##exchange.user##&#39;
+$ExchangePassword = &#39;##exchange.pass##&#39;
+
+Try
+{
+    #If Exchange creds empty - invoke remote command without creds, if not - create credential object and use it for authorization
+    if ($ExchangeUserName -and $ExchangePassword)
+    {
+        $ExchangeCredentials = New-Object System.Management.Automation.PSCredential ($ExchangeUserName, $(ConvertTo-SecureString $ExchangePassword -AsPlainText -Force))
+        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri &#34;http://$ExchangeFQDN/PowerShell/&#34; -Authentication Kerberos -Credential $ExchangeCredentials -ErrorAction Stop
+    } else {
+        $ExchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri &#34;http://$ExchangeFQDN/PowerShell/&#34; -Authentication Kerberos -ErrorAction Stop
+    }
+    Import-PSSession $ExchangeSession -DisableNameChecking | Out-Null     #Start Remote session
+    $ExDataBases = Get-MailboxDatabase -Status
+    $LogicalDisks = Get-WmiObject win32_logicaldisk
+    Remove-PSSession $ExchangeSession #End remote session
+} Catch {
+    #In case of error - write -1 to Error instance
+    Write-Host &#34;ERROR.size_GB=-1&#34;
+    Write-Host &#34;ERROR.white_space_GB=-1&#34;
+    If ($ExchangeSession) {Remove-PSSession $ExchangeSession} #End remote session if it exists
+}
+$RegEx = [regex]&#34;\((.*)\)&#34; #Regular expression for parsing space value
+
+Foreach ($ExDB in $ExDataBases) #process records, in case of error this foreach cycle would be ignored
+{
+    #Extract database size string; convert to integer and converts to GB; N1 - means one digit after decimal point  
+    $DatabaseSizeString = [regex]::match($ExDB.DatabaseSize, $RegEx).Groups[1]
+    $DatabaseSizeInt = [Int64]$DatabaseSizeString.Value.Replace(&#34; bytes&#34;,&#34;&#34;).Replace(&#34;,&#34;,&#34;&#34;)
+    $DatabaseSizeGB = ($DatabaseSizeInt/1GB).ToString(&#34;N1&#34;)
+
+    #Extract whitespace size string; convert to integer and converts to GB; N1 - means one digit after decimal point  
+    $AvailableNewMailboxSpaceString = [regex]::match($ExDB.AvailableNewMailboxSpace, $RegEx).Groups[1]
+    $AvailableNewMailboxSpaceInt = [Int64]$AvailableNewMailboxSpaceString.Value.Replace(&#34; bytes&#34;,&#34;&#34;).Replace(&#34;,&#34;,&#34;&#34;)
+    $WhiteSpace_GB = ($AvailableNewMailboxSpaceInt/1GB).ToString(&#34;N1&#34;)
+
+    #Extract Free Space For Database Logical Disk
+    $LogicalDiskLetter = $ExDB.edbfilepath[0]
+    $FreeSpaceGB = (($LogicalDisks | Where-Object {$_.DeviceID -match $LogicalDiskLetter}).FreeSpace/1GB).ToString(&#34;N1&#34;)
+    
+    if ($freeSpaceGB -gt $threshold_volume_free) {$problem_with_volume_free=0} else {$problem_with_volume_free=1} #1 is bad
+    if ($WhiteSpace_GB -gt $threshold_WhiteSpace) {$problem_with_WhiteSpace=0} else {$problem_with_WhiteSpace=1} #1 is bad
+    $problems_combined = $problem_with_volume_free + $problem_with_WhiteSpace
+    
+    Write-Host &#34;$($ExDB.Identity).size_GB=$DatabaseSizeGB&#34;
+
+    Write-Host &#34;$($ExDB.Identity).volume_free_GB=$FreeSpaceGB&#34;
+    Write-Host &#34;$($ExDB.Identity).threshold_volume_free=$threshold_volume_free&#34;
+    Write-Host &#34;$($ExDB.Identity).problem_with_volume_free=$problem_with_volume_free&#34;
+
+    Write-Host &#34;$($ExDB.Identity).whitespace_GB=$WhiteSpace_GB&#34;
+    Write-Host &#34;$($ExDB.Identity).threshold_whitespace=$threshold_whitespace&#34;
+    Write-Host &#34;$($ExDB.Identity).problem_with_WhiteSpace=$problem_with_WhiteSpace&#34;
+
+    Write-Host &#34;$($ExDB.Identity).problems_combined=$problems_combined&#34;
+}
+Exit 0</value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowsscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxscript</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>windowscmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        <attribute>
+            <name>linuxcmdline</name>
+            <value></value>
+            <comment></comment>
+        </attribute>
+        </attributes>
+        <datapoints>
+        <datapoint>
+            <name>size_GB</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.size_GB</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description></description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>volume_free_GB</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.volume_free_GB</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>2</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description></description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>WhiteSpace_GB</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.WhiteSpace_GB</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>2</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description></description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>threshold_volume_free</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.threshold_volume_free</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>in GB as set on device property</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>threshold_whitespace</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.threshold_whitespace</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>in GB as set on device property</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>ms_to_run</name>
+            <dataType>4</dataType>
+            <type>2</type>
+            <postprocessormethod>none</postprocessormethod>
+            <postprocessorparam></postprocessorparam>
+            <usevalue>responseTime</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>milliseconds it takes to run this script</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>problem_with_volume_free</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.problem_with_volume_free</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>in this case free space is below threshold</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>problem_with_WhiteSpace</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.problem_with_WhiteSpace</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr></alertexpr>
+            <alertmissing>1</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>per script...this means WhiteSpace &#60; threshold</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>0</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        <datapoint>
+            <name>problems_combined</name>
+            <dataType>7</dataType>
+            <type>2</type>
+            <postprocessormethod>namevalue</postprocessormethod>
+            <postprocessorparam>##wildvalue##.problems_combined</postprocessorparam>
+            <usevalue>output</usevalue>
+            <alertexpr>&#62;= 1 2 timezone=America/Los_Angeles</alertexpr>
+            <alertmissing>3</alertmissing>
+            <alertsubject></alertsubject>
+            <alertbody></alertbody>
+            <description>adds the problems together. e.g. if BOTH have problems then result is 2</description>
+            <maxvalue></maxvalue>
+            <minvalue></minvalue>
+            <userparam1></userparam1>
+            <userparam2></userparam2>
+            <userparam3></userparam3>
+            <iscomposite>false</iscomposite>
+            <rpn></rpn>
+            <alertTransitionIval>1</alertTransitionIval>
+            <alertClearTransitionIval>0</alertClearTransitionIval>
+        </datapoint>
+        </datapoints>
+        <graphs>
+        <graph>
+            <name>Whitespace and Volume FreeSpace</name>
+            <title>Whitespace and Volume FreeSpace</title>
+            <verticallabel>GB</verticallabel>
+            <rigid>false</rigid>
+            <maxvalue>NaN</maxvalue>
+            <minvalue>NaN</minvalue>
+            <displayprio>1</displayprio>
+            <timescale>1week</timescale>
+            <base1024>false</base1024>
+            <graphdatapoints>
+        <graphdatapoint>
+            <name>size_GB</name>
+            <datapointname>size_GB</datapointname>
+            <cf>1</cf>
+        </graphdatapoint>
+        <graphdatapoint>
+            <name>threshold_volume_free</name>
+            <datapointname>threshold_volume_free</datapointname>
+            <cf>1</cf>
+        </graphdatapoint>
+        <graphdatapoint>
+            <name>threshold_whitespace</name>
+            <datapointname>threshold_whitespace</datapointname>
+            <cf>1</cf>
+        </graphdatapoint>
+        <graphdatapoint>
+            <name>volume_free_GB</name>
+            <datapointname>volume_free_GB</datapointname>
+            <cf>1</cf>
+        </graphdatapoint>
+        <graphdatapoint>
+            <name>WhiteSpace_GB</name>
+            <datapointname>WhiteSpace_GB</datapointname>
+            <cf>1</cf>
+        </graphdatapoint>
+            </graphdatapoints>
+            <graphvirtualdatapoints>
+            </graphvirtualdatapoints>
+            <graphdatas>
+            <graphdata>
+                <type>1</type>
+                <legend>WhiteSpace_GB</legend>
+                <color>teal</color>
+                <datapointname>WhiteSpace_GB</datapointname>
+                <isvirtualdatapoint>false</isvirtualdatapoint>
+            </graphdata>
+            <graphdata>
+                <type>1</type>
+                <legend>volume_free_GB</legend>
+                <color>lime</color>
+                <datapointname>volume_free_GB</datapointname>
+                <isvirtualdatapoint>false</isvirtualdatapoint>
+            </graphdata>
+            <graphdata>
+                <type>1</type>
+                <legend>threshold_whitespace</legend>
+                <color>silver</color>
+                <datapointname>threshold_whitespace</datapointname>
+                <isvirtualdatapoint>false</isvirtualdatapoint>
+            </graphdata>
+            <graphdata>
+                <type>1</type>
+                <legend>threshold_volume_free</legend>
+                <color>green</color>
+                <datapointname>threshold_volume_free</datapointname>
+                <isvirtualdatapoint>false</isvirtualdatapoint>
+            </graphdata>
+            <graphdata>
+                <type>1</type>
+                <legend>DB size_GB</legend>
+                <color>orange2</color>
+                <datapointname>size_GB</datapointname>
+                <isvirtualdatapoint>false</isvirtualdatapoint>
+            </graphdata>
+            </graphdatas>
+        </graph>
+        </graphs>
+        <overviewgraphs>
+        </overviewgraphs>
+        <scripts>
+        </scripts>
+    </entry>
+</feed>
